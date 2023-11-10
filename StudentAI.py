@@ -50,7 +50,7 @@ class StudentAI():
                         black_score += center_weight
 
         # for self.color: 2 is black 1 is white
-        if self.color == 2:
+        if self.color == 1:
             return black_score - white_score
         else:
             return white_score - black_score
@@ -87,7 +87,7 @@ class StudentAI():
                         break
             return min_eval
 
-    def get_best_move(self, board, depth):
+    def find_best_move(self, board, depth):
         best_move = None
         alpha = float('-inf')
         beta = float('inf')
@@ -95,12 +95,12 @@ class StudentAI():
         for move in board.get_all_possible_moves(self.color):
             for m in move:
                 board.make_move(m, self.color)
-                score = self.minimax(board, depth - 1, alpha, beta, self.color == 1)
+                score = self.minimax(board, depth - 1, alpha, beta, self.color == 2)
                 board.undo()
-                if self.color == 2 and score > alpha: # for black use alpha
+                if self.color == 1 and score > alpha: # for black use alpha
                     alpha = score
                     best_move = m
-                elif self.color == 1 and score < beta: # for white use beta
+                elif self.color == 2 and score < beta: # for white use beta
                     beta = score
                     best_move = m
 
@@ -113,7 +113,7 @@ class StudentAI():
         else:
             self.color = 1
 
-        # call the get_best_move() to get the best move
-        best_move = self.get_best_move(self.board, 3)  # example, depth set to 3, change later
+        # call the find_best_move() to get the best move
+        best_move = self.find_best_move(self.board, 3)  # example, depth set to 3, change later
         self.board.make_move(best_move, self.color)
         return best_move
