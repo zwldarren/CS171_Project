@@ -20,6 +20,7 @@ class StudentAI():
         white_score = 0
         black_score = 0
 
+        # need to find better weight values or find new weight rules
         piece_weight = 1
         king_weight = 1.5
         edge_weight = 0.5
@@ -49,43 +50,42 @@ class StudentAI():
                     if row == 0 or row == board.row - 1:
                         black_score += center_weight
 
-        # for self.color: 2 is black 1 is white
         if self.color == 1:
             return black_score - white_score
         else:
             return white_score - black_score
 
-    def minimax(self, board, depth, alpha, beta, maximizing_player):
+    def minimax(self, board, depth, alpha, beta, is_max_player):
         # if reached the search depth limit, or some player wins, return the current score
         if depth == 0 or board.is_win(self.color) or board.is_win(self.opponent[self.color]):
             return self.evaluate(board)
 
         # traverse all possible moves of the current player
-        if maximizing_player:
-            max_eval = float('-inf')
+        if is_max_player:
+            max_player_score = float('-inf')
             for move in board.get_all_possible_moves(self.color):
                 for m in move:
                     board.make_move(m, self.color)
-                    eval = self.minimax(board, depth - 1, alpha, beta, False) # pass in alpha and beta
+                    current_score = self.minimax(board, depth - 1, alpha, beta, False) # pass in alpha and beta, switch players
                     board.undo()
-                    max_eval = max(max_eval, eval)
-                    alpha = max(alpha, eval) # update alpha
+                    max_player_score = max(max_player_score, current_score)
+                    alpha = max(alpha, current_score)
                     if beta <= alpha:
                         break
-            return max_eval
+            return max_player_score
         # traverse all possible moves of the opponent
         else:
-            min_eval = float('inf')
+            min_player_score = float('inf')
             for move in board.get_all_possible_moves(self.opponent[self.color]):
                 for m in move:
                     board.make_move(m, self.opponent[self.color])
-                    eval = self.minimax(board, depth - 1, alpha, beta, True)  # pass in alpha and beta
+                    current_score = self.minimax(board, depth - 1, alpha, beta, True)  # pass in alpha and beta, switch players
                     board.undo()
-                    min_eval = min(min_eval, eval)
-                    beta = min(beta, eval)  # update beta
+                    min_player_score = min(min_player_score, current_score)
+                    beta = min(beta, current_score)
                     if beta <= alpha:
                         break
-            return min_eval
+            return min_player_score
 
     def find_best_move(self, board, depth):
         best_move = None
