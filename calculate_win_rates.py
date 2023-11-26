@@ -85,7 +85,7 @@ def calculate_win_rates(rounds = 100):
 
 if __name__ == "__main__":
     print("test 1\n")
-    print(calculate_win_rates(10))
+    print(calculate_win_rates(100))
     # print("test 2\n")
     # print(calculate_win_rates(10))
     # print("test 3\n")
