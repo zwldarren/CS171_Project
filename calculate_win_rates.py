@@ -27,11 +27,11 @@ def run_game(wins):
         wins["ties"] += 1
 
 
-def calculate_win_rates(rounds=100):
+def calculate_win_rates(rounds=100, num_threads=1):
     wins = Counter({"player 1": 0, "player 2": 0, "ties": 0})
     threads = []
 
-    for i in range(rounds):
+    for _ in range(num_threads):
         thread = threading.Thread(target=run_game, args=(wins,))
         threads.append(thread)
         thread.start()
@@ -49,7 +49,8 @@ def calculate_win_rates(rounds=100):
 if __name__ == "__main__":
     print("Calculating win rates...")
     start = time.time()
-    print(calculate_win_rates(rounds=100))
+    # 修改num_threads可以调整多线程数量，推荐不要超过CPU核心数
+    print(calculate_win_rates(rounds=100, num_threads=4))
     end = time.time()
     print(
         "Time elapsed: {}min {}s".format(
