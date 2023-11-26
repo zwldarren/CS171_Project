@@ -15,8 +15,8 @@ def run_game():
         "2",
         "l",
         "main.py",
-        "Sample_AIs/Random_AI/main.py",
-        # "Sample_AIs/Poor_AI/main.py",
+        # "Sample_AIs/Random_AI/main.py",
+        "Sample_AIs/Poor_AI/main.py",
     ]
 
     # python 3.5.2不支持
