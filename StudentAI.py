@@ -134,7 +134,7 @@ class StudentAI:
         else:
             self.color = 1
         root = MCTS_Node(board = self.board, player_color = self.color)
-        MCTS(root, self.color, iterations = 10)
+        MCTS(root, self.color, iterations = 100)
         best_move = max(root.children, key = lambda c: c.val / c.visits).move
         self.board.make_move(best_move, self.color)
         return best_move
