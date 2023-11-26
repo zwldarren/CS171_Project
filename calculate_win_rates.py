@@ -4,37 +4,43 @@ import threading
 from collections import Counter
 
 
-def run_game(wins):
-    command = [
-        "python",
-        "main.py",
-        "7",
-        "7",
-        "2",
-        "l",
-        "main.py",
-        # "Sample_AIs/Random_AI/main.py",
-        "Sample_AIs/Poor_AI/main.py",
-    ]
+def run_game(wins, games_to_run):
+    for _ in range(games_to_run):
+        command = [
+            "python",
+            "main.py",
+            "7",
+            "7",
+            "2",
+            "l",
+            "main.py",
+            # "Sample_AIs/Random_AI/main.py",
+            "Sample_AIs/Poor_AI/main.py",
+        ]
 
-    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout_text = result.stdout.decode("utf-8")
-    if "player 1 wins" in stdout_text:
-        wins["player 1"] += 1
-    elif "player 2 wins" in stdout_text:
-        wins["player 2"] += 1
-    elif "Tie" in stdout_text:
-        wins["ties"] += 1
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout_text = result.stdout.decode("utf-8")
+        if "player 1 wins" in stdout_text:
+            wins["player 1"] += 1
+        elif "player 2 wins" in stdout_text:
+            wins["player 2"] += 1
+        elif "Tie" in stdout_text:
+            wins["ties"] += 1
 
 
-def calculate_win_rates(rounds=100, num_threads=1):
+def calculate_win_rates(rounds=100, num_threads=4):
     wins = Counter({"player 1": 0, "player 2": 0, "ties": 0})
     threads = []
+    games_per_thread = rounds // num_threads
 
     for _ in range(num_threads):
-        thread = threading.Thread(target=run_game, args=(wins,))
+        thread = threading.Thread(target=run_game, args=(wins, games_per_thread))
         threads.append(thread)
         thread.start()
+
+    # Handle any remaining games
+    for _ in range(rounds % num_threads):
+        run_game(wins, 1)
 
     for thread in threads:
         thread.join()
