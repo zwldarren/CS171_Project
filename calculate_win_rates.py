@@ -1,49 +1,41 @@
 import subprocess
 import time
-import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import Counter
 
 
-def run_game(wins, games_to_run):
-    for _ in range(games_to_run):
-        command = [
-            "python",
-            "main.py",
-            "7",
-            "7",
-            "2",
-            "l",
-            "main.py",
-            # "Sample_AIs/Random_AI/main.py",
-            "Sample_AIs/Poor_AI/main.py",
-        ]
+def run_game():
+    command = [
+        "python",
+        "main.py",
+        "7",
+        "7",
+        "2",
+        "l",
+        "main.py",
+        # "Sample_AIs/Random_AI/main.py",
+        "Sample_AIs/Poor_AI/main.py",
+    ]
 
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout_text = result.stdout.decode("utf-8")
-        if "player 1 wins" in stdout_text:
-            wins["player 1"] += 1
-        elif "player 2 wins" in stdout_text:
-            wins["player 2"] += 1
-        elif "Tie" in stdout_text:
-            wins["ties"] += 1
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_text = result.stdout.decode("utf-8")
+
+    if "player 1 wins" in stdout_text:
+        return "player 1"
+    elif "player 2 wins" in stdout_text:
+        return "player 2"
+    elif "Tie" in stdout_text:
+        return "ties"
+    return "unknown"
 
 
-def calculate_win_rates(rounds=100, num_threads=4):
-    wins = Counter({"player 1": 0, "player 2": 0, "ties": 0})
-    threads = []
-    games_per_thread = rounds // num_threads
-
-    for _ in range(num_threads):
-        thread = threading.Thread(target=run_game, args=(wins, games_per_thread))
-        threads.append(thread)
-        thread.start()
-
-    # Handle any remaining games
-    for _ in range(rounds % num_threads):
-        run_game(wins, 1)
-
-    for thread in threads:
-        thread.join()
+def calculate_win_rates(rounds=100, workers=4):
+    wins = Counter()
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_game = {executor.submit(run_game): i for i in range(rounds)}
+        for future in as_completed(future_to_game):
+            result = future.result()
+            wins[result] += 1
 
     return "player 1: {:.2f}%\nplayer 2: {:.2f}%\nties: {:.2f}%".format(
         wins["player 1"] / rounds * 100,
@@ -56,7 +48,7 @@ if __name__ == "__main__":
     print("Calculating win rates...")
     start = time.time()
     # 修改num_threads可以调整多线程数量，推荐不要超过CPU核心数
-    print(calculate_win_rates(rounds=100, num_threads=4))
+    print(calculate_win_rates(rounds=100, workers=4))
     end = time.time()
     print(
         "Time elapsed: {}min {}s".format(
