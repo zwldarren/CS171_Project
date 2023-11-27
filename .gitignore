@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+!**/Sample_AIs/**/__pycache__/
+!**/Sample_AIs/**/*$py.class
+!**/Sample_AIs/**/*pyc
 
 # Distribution / packaging
 .Python
