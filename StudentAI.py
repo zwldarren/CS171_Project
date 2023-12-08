@@ -10,6 +10,9 @@ from BoardClasses import Move, Board, Checker
 
 
 class MCTS_Node:
+    
+    board_cache = {}
+    
     def __init__(self, move=None, parent=None, board=None, player_color=None) -> None:
         self.move = move
         self.parent = parent
@@ -57,6 +60,9 @@ class MCTS_Node:
             self.val += 1.0
 
     def simulate_random_games(self):
+        board_hash = hash(str(self.board.board))
+        if board_hash in MCTS_Node.board_cache:
+            return MCTS_Node.board_cache[board_hash]
         board = deepcopy(self.board)
         current_color = self.player_color
         opponent = {1: 2, 2: 1}
@@ -66,8 +72,10 @@ class MCTS_Node:
 
             # 一但一方获胜则结束循环
             if board.is_win(current_color) == current_color:
+                MCTS_Node.board_cache[board_hash] = current_color
                 return current_color
             if board.is_win(opponent[current_color]) == opponent[current_color]:
+                MCTS_Node.board_cache[board_hash] = opponent[current_color]
                 return opponent[current_color]
 
             # 应用启发式规则
