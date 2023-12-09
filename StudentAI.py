@@ -9,8 +9,6 @@ from typing import List
 
 
 class MCTS_Node:
-    board_cache = {}
-
     def __init__(self, board: Board, player_color, move=None, parent=None) -> None:
         self.move = move
         self.parent = parent
@@ -22,7 +20,10 @@ class MCTS_Node:
         self.untried_moves = self.board.get_all_possible_moves(player_color)
 
     def UCT_select_child(self):
-        c = math.sqrt(2)
+        if self.is_early_game():
+            c = math.sqrt(2) * 2
+        else:
+            c = math.sqrt(2)
         best_score = -float("inf")
         best_child = MCTS_Node(board=self.board, player_color=self.player_color)
         for child in self.children:
@@ -37,6 +38,13 @@ class MCTS_Node:
                 best_score = uct_score
                 best_child = child
         return best_child
+
+    def is_early_game(self):
+        # used the number of pieces to determine if the game is in the early stage
+        total_pieces = sum(
+            1 for row in self.board.board for piece in row if piece != "."
+        )
+        return total_pieces > (self.board.row * self.board.col) // 2
 
     def add_child(self, move, board):
         child_board = deepcopy(board)
@@ -58,9 +66,6 @@ class MCTS_Node:
             self.val += 1.0
 
     def simulate_random_games(self):
-        board_hash = hash(str(self.board.board))
-        if board_hash in MCTS_Node.board_cache:
-            return MCTS_Node.board_cache[board_hash]
         board = deepcopy(self.board)
         current_color = self.player_color
         opponent = {1: 2, 2: 1}
@@ -70,10 +75,8 @@ class MCTS_Node:
 
             # 一但一方获胜则结束循环
             if board.is_win(current_color) == current_color:
-                MCTS_Node.board_cache[board_hash] = current_color
                 return current_color
             if board.is_win(opponent[current_color]) == opponent[current_color]:
-                MCTS_Node.board_cache[board_hash] = opponent[current_color]
                 return opponent[current_color]
 
             # 应用启发式规则
@@ -95,22 +98,6 @@ class MCTS_Node:
         safe_moves = self.get_safety_move(possible_moves)
         if safe_moves:
             return random.choice(safe_moves)
-        
-        # # 优先防守
-        # if self.is_ahead_in_pieces():
-        #     defensive_moves = [m for m in possible_moves if self.is_defensive_move(m)]
-        #     if defensive_moves:
-        #         return random.choice(defensive_moves)
-
-        # choose the move that promotes a piece
-        promotion_moves = self.get_promotion_move(possible_moves)
-        if promotion_moves:
-            return random.choice(promotion_moves)
-        
-        # choose the move that controls the center of the board
-        center_moves = self.get_center_control_move(possible_moves)
-        if center_moves:
-            return random.choice(center_moves)
 
         return random.choice(random.choice(possible_moves))
 
@@ -127,26 +114,6 @@ class MCTS_Node:
                     capture_moves.append(move)
         if capture_moves:
             return random.choice(capture_moves)
-        return None
-
-    def get_promotion_move(self, possible_moves: List[List[Move]]):
-        # if the move is a sequence of moves, check if the last move is a promotion
-        promotion_row = 0 if self.player_color == 1 else self.board.row - 1
-        for moveset in possible_moves:
-            for move in moveset:
-                if move.seq[-1][0] == promotion_row:
-                    return move
-        return None
-
-    def get_center_control_move(self, possible_moves: List[List[Move]]):
-        # Assuming the center of the board is strategically important
-        center_rows = [self.board.row // 2 - 1, self.board.row // 2]
-        center_cols = [self.board.col // 2 - 1, self.board.col // 2]
-        for moveset in possible_moves:
-            for move in moveset:
-                end_pos = move.seq[-1]
-                if end_pos[0] in center_rows and end_pos[1] in center_cols:
-                    return move
         return None
 
     def get_safety_move(self, possible_moves):
@@ -198,33 +165,16 @@ class MCTS_Node:
 
         # Use the Board's is_valid_move method to check for a valid capture
         return self.board.is_valid_move(
-            opponent_pos[0], opponent_pos[1], capture_pos[0], capture_pos[1], opponent_color
+            opponent_pos[0],
+            opponent_pos[1],
+            capture_pos[0],
+            capture_pos[1],
+            opponent_color,
         )
 
     def is_in_board(self, row, col):
         # Check if the position is within the board boundaries
         return 0 <= row < self.board.row and 0 <= col < self.board.col
-
-    # def is_defensive_move(self, move):
-    #     # Implement logic to check if the move is good for defense
-    #     # This might involve checking if the move helps in blocking opponent moves or protecting key pieces
-    #     pass
-
-    # def is_ahead_in_pieces(self):
-    #     # Check if the current player is ahead in terms of piece count
-    #     my_pieces = sum(
-    #         1
-    #         for row in self.board.board
-    #         for piece in row
-    #         if piece.color == self.player_color
-    #     )
-    #     opponent_pieces = sum(
-    #         1
-    #         for row in self.board.board
-    #         for piece in row
-    #         if piece.color != "." and piece.color != self.player_color
-    #     )
-    #     return my_pieces > opponent_pieces
 
 
 class StudentAI:
@@ -249,7 +199,14 @@ class StudentAI:
         return best_move
 
     def run_mcts(self, root: MCTS_Node):
-        iterations = 100  # change the iteration number here
+        # if the game is in the late stage, decrease the iteration number
+        total_pieces = sum(
+            1 for row in self.board.board for piece in row if piece != "."
+        )
+        if total_pieces > self.row * self.col // 2:
+            iterations = 300
+        else:
+            iterations = 100  # change the iteration number here
         for _ in range(iterations):
             node = root
 

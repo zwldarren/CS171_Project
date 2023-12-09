@@ -12,9 +12,9 @@ def run_game():
         "7",
         "2",
         "l",
-        "main.py",
-        # "Sample_AIs/Random_AI/main.py",
-        "Sample_AIs/Poor_AI/main.py",
+    	"main.py",
+	 # "Sample_AIs/Random_AI/main.py",
+        "Sample_AIs/Average_AI/main.py",
     ]
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -47,8 +47,8 @@ def calculate_win_rates(rounds=100, workers=4):
 if __name__ == "__main__":
     print("Calculating win rates...")
     start = time.time()
-    # 修改num_threads可以调整多线程数量，推荐不要超过CPU核心数
-    print(calculate_win_rates(rounds=100, workers=4))
+    # 修改workers可以调整多线程数量，推荐不要超过CPU核心数
+    print(calculate_win_rates(rounds=100, workers=8))
     end = time.time()
     print(
         "Time elapsed: {}min {}s".format(
