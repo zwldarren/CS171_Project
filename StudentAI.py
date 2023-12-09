@@ -1,19 +1,17 @@
 import math
 import random
 from copy import deepcopy
-from random import randint
 from BoardClasses import Move, Board, Checker
-
+from typing import List
 
 # The following part should be completed by students.
 # Students can modify anything except the class name and exisiting functions and varibles.
 
 
 class MCTS_Node:
-    
     board_cache = {}
-    
-    def __init__(self, move=None, parent=None, board=None, player_color=None) -> None:
+
+    def __init__(self, board: Board, player_color, move=None, parent=None) -> None:
         self.move = move
         self.parent = parent
         self.board = deepcopy(board)
@@ -25,8 +23,8 @@ class MCTS_Node:
 
     def UCT_select_child(self):
         c = math.sqrt(2)
-        best_child = None
         best_score = -float("inf")
+        best_child = MCTS_Node(board=self.board, player_color=self.player_color)
         for child in self.children:
             if child.visits > 0:
                 win_ratio = child.val / child.visits
@@ -85,20 +83,148 @@ class MCTS_Node:
             current_color = opponent[current_color]
 
     def heuristic_choose_move(self, possible_moves):
-        # 移除空的移动列表
+        # filter out empty moves
         possible_moves = [m for m in possible_moves if m]
 
-        # 启发式规则 - 优先考虑能吃子的走法
-        capture_moves = [
-            m for sublist in possible_moves for m in sublist if len(m.seq) > 2
-        ]
+        # choose the move with the most captures
+        capture_move = self.get_capture_move(possible_moves)
+        if capture_move:
+            return capture_move
+
+        # choose the move that is safe
+        safe_moves = self.get_safety_move(possible_moves)
+        if safe_moves:
+            return random.choice(safe_moves)
+        
+        # # 优先防守
+        # if self.is_ahead_in_pieces():
+        #     defensive_moves = [m for m in possible_moves if self.is_defensive_move(m)]
+        #     if defensive_moves:
+        #         return random.choice(defensive_moves)
+
+        # choose the move that promotes a piece
+        promotion_moves = self.get_promotion_move(possible_moves)
+        if promotion_moves:
+            return random.choice(promotion_moves)
+        
+        # choose the move that controls the center of the board
+        center_moves = self.get_center_control_move(possible_moves)
+        if center_moves:
+            return random.choice(center_moves)
+
+        return random.choice(random.choice(possible_moves))
+
+    def get_capture_move(self, possible_moves: List[List[Move]]):
+        # 找到能吃最多子的走法
+        max_capture = 2
+        capture_moves = []
+        for moveset in possible_moves:
+            for move in moveset:
+                if len(move) > max_capture:
+                    max_capture = len(move)
+                    capture_moves = [move]
+                elif len(move) == max_capture:
+                    capture_moves.append(move)
         if capture_moves:
             return random.choice(capture_moves)
+        return None
 
-        # 其他启发式规则可以在这里添加
+    def get_promotion_move(self, possible_moves: List[List[Move]]):
+        # if the move is a sequence of moves, check if the last move is a promotion
+        promotion_row = 0 if self.player_color == 1 else self.board.row - 1
+        for moveset in possible_moves:
+            for move in moveset:
+                if move.seq[-1][0] == promotion_row:
+                    return move
+        return None
 
-        # 如果没有吃子走法，随机选择一个走法
-        return random.choice(random.choice(possible_moves))
+    def get_center_control_move(self, possible_moves: List[List[Move]]):
+        # Assuming the center of the board is strategically important
+        center_rows = [self.board.row // 2 - 1, self.board.row // 2]
+        center_cols = [self.board.col // 2 - 1, self.board.col // 2]
+        for moveset in possible_moves:
+            for move in moveset:
+                end_pos = move.seq[-1]
+                if end_pos[0] in center_rows and end_pos[1] in center_cols:
+                    return move
+        return None
+
+    def get_safety_move(self, possible_moves):
+        # Implement logic to determine if the move exposes the piece to risk
+        safe_moves = []
+        opponent = {1: 2, 2: 1}
+        opponent_color = opponent[self.player_color]
+
+        for moveset in possible_moves:
+            for move in moveset:
+                is_safe = True
+                target_row, target_col = move.seq[-1]
+
+                # Checking adjacent squares for opponent pieces
+                adjacent_positions = [
+                    (target_row - 1, target_col - 1),  # upper left
+                    (target_row - 1, target_col + 1),  # upper right
+                    (target_row + 1, target_col - 1),  # lower left
+                    (target_row + 1, target_col + 1),  # lower right
+                ]
+
+                for pos in adjacent_positions:
+                    if self.is_in_board(*pos):
+                        adj_piece = self.board.board[pos[0]][pos[1]]
+                        if adj_piece.color == opponent_color:
+                            # Check if opponent piece can capture the moved piece
+                            if self.can_be_captured(
+                                pos, (target_row, target_col), opponent_color
+                            ):
+                                is_safe = False
+                                break
+
+                if is_safe:
+                    safe_moves.append(move)
+
+        return safe_moves if safe_moves else None
+
+    def can_be_captured(self, opponent_pos, target_pos, opponent_color):
+        # Check if a piece at opponent_pos can capture a piece at target_pos
+        row_diff = target_pos[0] - opponent_pos[0]
+        col_diff = target_pos[1] - opponent_pos[1]
+
+        # The direction the opponent piece would move to capture
+        capture_direction = (row_diff * 2, col_diff * 2)
+        capture_pos = (
+            opponent_pos[0] + capture_direction[0],
+            opponent_pos[1] + capture_direction[1],
+        )
+
+        # Use the Board's is_valid_move method to check for a valid capture
+        return self.board.is_valid_move(
+            opponent_pos[0], opponent_pos[1], capture_pos[0], capture_pos[1], opponent_color
+        )
+
+    def is_in_board(self, row, col):
+        # Check if the position is within the board boundaries
+        return 0 <= row < self.board.row and 0 <= col < self.board.col
+
+    # def is_defensive_move(self, move):
+    #     # Implement logic to check if the move is good for defense
+    #     # This might involve checking if the move helps in blocking opponent moves or protecting key pieces
+    #     pass
+
+    # def is_ahead_in_pieces(self):
+    #     # Check if the current player is ahead in terms of piece count
+    #     my_pieces = sum(
+    #         1
+    #         for row in self.board.board
+    #         for piece in row
+    #         if piece.color == self.player_color
+    #     )
+    #     opponent_pieces = sum(
+    #         1
+    #         for row in self.board.board
+    #         for piece in row
+    #         if piece.color != "." and piece.color != self.player_color
+    #     )
+    #     return my_pieces > opponent_pieces
 
 
 class StudentAI:
@@ -122,18 +248,18 @@ class StudentAI:
         self.board.make_move(best_move, self.color)
         return best_move
 
-    def run_mcts(self, root):
-        iterations = 100  # 或根据需要调整迭代次数
+    def run_mcts(self, root: MCTS_Node):
+        iterations = 100  # change the iteration number here
         for _ in range(iterations):
             node = root
 
-            # 寻找有未尝试走法的节点，如果没有，则使用UCT选择子节点
+            # select a node to explore
             while node.children and not any(
                 moves for moves in node.untried_moves if moves
             ):
                 node = node.UCT_select_child()
 
-            # 从未尝试的走法中选择一个走法进行扩展
+            # choose untried move
             untried_moves = [
                 move for sublist in node.untried_moves for move in sublist if sublist
             ]
@@ -141,7 +267,7 @@ class StudentAI:
                 move = random.choice(untried_moves)
                 node = node.add_child(move, node.board)
 
-            # 启发式模拟随机对局并更新节点
+            # simulate random games
             simulation_result = node.simulate_random_games()
             while node is not None:
                 node.update(simulation_result)
