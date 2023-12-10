@@ -192,7 +192,95 @@ class StudentAI:
         self.opponent = {1: 2, 2: 1}
         self.total_time = 0
         self.max_total_time = 300  # 5 minutes in seconds
+    def minmax_evaluate(self, board):
+        white_score = 0
+        black_score = 0
 
+        # need to find better weight values or find new weight rules
+        piece_weight = 1
+        king_weight = 1.5
+        edge_weight = 0.5
+        center_weight = 0.5
+
+        for row in range(board.row):
+            for col in range(board.col):
+                checker = board.board[row][col]
+
+                #for white pieces score
+                if checker.color == 'W':
+                    white_score += piece_weight
+                    if checker.is_king:
+                        white_score += king_weight
+                    if col == 0 or col == board.col - 1:
+                        white_score += edge_weight
+                    if row == 0 or row == board.row - 1:
+                        white_score += center_weight
+
+                # for black pieces score
+                elif checker.color == 'B':
+                    black_score += piece_weight
+                    if checker.is_king:
+                        black_score += king_weight
+                    if col == 0 or col == board.col - 1:
+                        black_score += edge_weight
+                    if row == 0 or row == board.row - 1:
+                        black_score += center_weight
+
+        if self.color == 1:
+            return black_score - white_score
+        else:
+            return white_score - black_score
+
+    def minimax(self, board, depth, alpha, beta, is_max_player):
+        # if reached the search depth limit, or some player wins, return the current score
+        if depth == 0 or board.is_win(self.color) or board.is_win(self.opponent[self.color]):
+            return self.minmax_evaluate(board)
+
+        # traverse all possible moves of the current player
+        if is_max_player:
+            max_player_score = float('-inf')
+            for move in board.get_all_possible_moves(self.color):
+                for m in move:
+                    board.make_move(m, self.color)
+                    current_score = self.minimax(board, depth - 1, alpha, beta, False) # pass in alpha and beta, switch players
+                    board.undo()
+                    max_player_score = max(max_player_score, current_score)
+                    alpha = max(alpha, current_score)
+                    if beta <= alpha:
+                        break
+            return max_player_score
+        # traverse all possible moves of the opponent
+        else:
+            min_player_score = float('inf')
+            for move in board.get_all_possible_moves(self.opponent[self.color]):
+                for m in move:
+                    board.make_move(m, self.opponent[self.color])
+                    current_score = self.minimax(board, depth - 1, alpha, beta, True)  # pass in alpha and beta, switch players
+                    board.undo()
+                    min_player_score = min(min_player_score, current_score)
+                    beta = min(beta, current_score)
+                    if beta <= alpha:
+                        break
+            return min_player_score
+
+    def find_minmax_best_move(self, board, depth):
+        best_move = None
+        alpha = float('-inf')
+        beta = float('inf')
+
+        for move in board.get_all_possible_moves(self.color):
+            for m in move:
+                board.make_move(m, self.color)
+                score = self.minimax(board, depth - 1, alpha, beta, self.color == 2)
+                board.undo()
+                if self.color == 1 and score > alpha: # for black use alpha
+                    alpha = score
+                    best_move = m
+                elif self.color == 2 and score < beta: # for white use beta
+                    beta = score
+                    best_move = m
+
+        return best_move
     def get_move(self, move: Move):
         if len(move) != 0:
             self.board.make_move(move, self.opponent[self.color])
@@ -206,7 +294,9 @@ class StudentAI:
         self.total_time += elapsed_time
 
         if self.total_time > self.max_total_time * 0.9:
-            best_move = max(root.children, key=lambda c: c.visits).move
+            # 时间不够时采用minmax算法快速决定下一步
+            # best_move = max(root.children, key=lambda c: c.visits).move
+            best_move = self.find_minmax_best_move(self.board, 3)
         else:
             best_move = max(root.children, key=lambda c: c.val / c.visits).move
         self.board.make_move(best_move, self.color)
