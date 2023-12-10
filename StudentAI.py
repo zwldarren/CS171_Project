@@ -294,7 +294,7 @@ class StudentAI:
         self.total_time += elapsed_time
 
         if self.total_time > self.max_total_time * 0.9:
-            # 时间不够时采用minmax算法快速决定下一步
+            # 时间不够时采用minmax算法快速决定
             # best_move = max(root.children, key=lambda c: c.visits).move
             best_move = self.find_minmax_best_move(self.board, 3)
         else:
