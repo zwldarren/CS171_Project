@@ -36,3 +36,4 @@ ENV/
 # Sublime Text settings
 *.sublime-workspace
 *.sublime-project
+log.txt

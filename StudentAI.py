@@ -22,10 +22,7 @@ class MCTS_Node:
         self.untried_moves = self.board.get_all_possible_moves(player_color)
 
     def UCT_select_child(self):
-        if self.is_early_game():
-            c = math.sqrt(2) * 2
-        else:
-            c = math.sqrt(2)
+        c = math.sqrt(2)
         best_score = -float("inf")
         best_child = MCTS_Node(board=self.board, player_color=self.player_color)
         for child in self.children:
@@ -67,8 +64,8 @@ class MCTS_Node:
         if result == self.player_color:
             win_confidence = (self.val / self.visits) if self.visits > 0 else 0
             self.val += 1.0 + win_confidence  # More weight to consistent wins
-        #elif result == self.opponent[self.player_color]:
-         #   self.val -= 1.0  # Subtract score if opponent wins
+        # elif result == self.opponent[self.player_color]:
+        #   self.val -= 1.0  # Subtract score if opponent wins
 
     def simulate_random_games(self):
         board = deepcopy(self.board)
@@ -102,9 +99,9 @@ class MCTS_Node:
             return capture_move
 
         # choose the move that is safe
-        # safe_moves = self.get_safety_move(possible_moves)
-        # if safe_moves:
-        #     return random.choice(safe_moves)
+        safe_moves = self.get_safety_move(possible_moves)
+        if safe_moves:
+            return random.choice(safe_moves)
 
         return random.choice(random.choice(possible_moves))
 
@@ -193,7 +190,8 @@ class StudentAI:
         self.board.initialize_game()
         self.color = 2
         self.opponent = {1: 2, 2: 1}
-        self.timeout = 120
+        self.total_time = 0
+        self.max_total_time = 300  # 5 minutes in seconds
 
     def get_move(self, move: Move):
         if len(move) != 0:
@@ -201,28 +199,27 @@ class StudentAI:
         else:
             self.color = 1
         root = MCTS_Node(board=self.board, player_color=self.color)
-        start_time = self.run_mcts(root)
-        if time.time() - start_time > self.timeout:
-            # Select based on visit count
+
+        start_time = time.time()
+        self.run_mcts(root)
+        elapsed_time = time.time() - start_time
+        self.total_time += elapsed_time
+
+        if self.total_time > self.max_total_time * 0.9:
             best_move = max(root.children, key=lambda c: c.visits).move
         else:
-            # Normal selection
             best_move = max(root.children, key=lambda c: c.val / c.visits).move
         self.board.make_move(best_move, self.color)
         return best_move
 
     def run_mcts(self, root: MCTS_Node):
-        start_time = time.time()
         # if the game is in the late stage, decrease the iteration number
-        total_pieces = sum(
-            1 for row in self.board.board for piece in row if piece != "."
-        )
-        if total_pieces > self.row * self.col // 2:
-            iterations = 300
+        if self.total_time > self.max_total_time * 0.7:
+            iterations = 100
         else:
-            iterations = 100  # change the iteration number here
+            iterations = 300  # change the iteration number here
         for _ in range(iterations):
-            if time.time() - start_time > self.timeout:
+            if self.total_time > self.max_total_time * 0.9:
                 break
             node = root
 
@@ -245,4 +242,3 @@ class StudentAI:
             while node is not None:
                 node.update(simulation_result)
                 node = node.parent
-        return start_time
