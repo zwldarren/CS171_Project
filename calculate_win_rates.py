@@ -48,7 +48,7 @@ if __name__ == "__main__":
     print("Calculating win rates...")
     start = time.time()
     # 修改workers可以调整多线程数量，推荐不要超过CPU核心数
-    print(calculate_win_rates(rounds=100, workers=8))
+    print(calculate_win_rates(rounds=100, workers=12))
     end = time.time()
     print(
         "Time elapsed: {}min {}s".format(

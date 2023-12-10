@@ -1,5 +1,6 @@
 import math
 import random
+import time
 from copy import deepcopy
 from BoardClasses import Move, Board, Checker
 from typing import List
@@ -17,6 +18,7 @@ class MCTS_Node:
         self.val = 0.0
         self.visits = 0.0
         self.player_color = player_color
+        self.opponent = {1: 2, 2: 1}
         self.untried_moves = self.board.get_all_possible_moves(player_color)
 
     def UCT_select_child(self):
@@ -63,12 +65,14 @@ class MCTS_Node:
     def update(self, result):
         self.visits += 1.0
         if result == self.player_color:
-            self.val += 1.0
+            win_confidence = (self.val / self.visits) if self.visits > 0 else 0
+            self.val += 1.0 + win_confidence  # More weight to consistent wins
+        #elif result == self.opponent[self.player_color]:
+         #   self.val -= 1.0  # Subtract score if opponent wins
 
     def simulate_random_games(self):
         board = deepcopy(self.board)
         current_color = self.player_color
-        opponent = {1: 2, 2: 1}
 
         while True:
             possible_moves = board.get_all_possible_moves(current_color)
@@ -76,14 +80,17 @@ class MCTS_Node:
             # 一但一方获胜则结束循环
             if board.is_win(current_color) == current_color:
                 return current_color
-            if board.is_win(opponent[current_color]) == opponent[current_color]:
-                return opponent[current_color]
+            if (
+                board.is_win(self.opponent[current_color])
+                == self.opponent[current_color]
+            ):
+                return self.opponent[current_color]
 
             # 应用启发式规则
             move = self.heuristic_choose_move(possible_moves)
 
             board.make_move(move, current_color)
-            current_color = opponent[current_color]
+            current_color = self.opponent[current_color]
 
     def heuristic_choose_move(self, possible_moves):
         # filter out empty moves
@@ -95,9 +102,9 @@ class MCTS_Node:
             return capture_move
 
         # choose the move that is safe
-        safe_moves = self.get_safety_move(possible_moves)
-        if safe_moves:
-            return random.choice(safe_moves)
+        # safe_moves = self.get_safety_move(possible_moves)
+        # if safe_moves:
+        #     return random.choice(safe_moves)
 
         return random.choice(random.choice(possible_moves))
 
@@ -186,6 +193,7 @@ class StudentAI:
         self.board.initialize_game()
         self.color = 2
         self.opponent = {1: 2, 2: 1}
+        self.timeout = 120
 
     def get_move(self, move: Move):
         if len(move) != 0:
@@ -193,12 +201,18 @@ class StudentAI:
         else:
             self.color = 1
         root = MCTS_Node(board=self.board, player_color=self.color)
-        self.run_mcts(root)
-        best_move = max(root.children, key=lambda c: c.val / c.visits).move
+        start_time = self.run_mcts(root)
+        if time.time() - start_time > self.timeout:
+            # Select based on visit count
+            best_move = max(root.children, key=lambda c: c.visits).move
+        else:
+            # Normal selection
+            best_move = max(root.children, key=lambda c: c.val / c.visits).move
         self.board.make_move(best_move, self.color)
         return best_move
 
     def run_mcts(self, root: MCTS_Node):
+        start_time = time.time()
         # if the game is in the late stage, decrease the iteration number
         total_pieces = sum(
             1 for row in self.board.board for piece in row if piece != "."
@@ -208,6 +222,8 @@ class StudentAI:
         else:
             iterations = 100  # change the iteration number here
         for _ in range(iterations):
+            if time.time() - start_time > self.timeout:
+                break
             node = root
 
             # select a node to explore
@@ -229,3 +245,4 @@ class StudentAI:
             while node is not None:
                 node.update(simulation_result)
                 node = node.parent
+        return start_time
