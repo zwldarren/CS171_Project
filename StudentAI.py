@@ -38,13 +38,6 @@ class MCTS_Node:
                 best_child = child
         return best_child
 
-    def is_early_game(self):
-        # used the number of pieces to determine if the game is in the early stage
-        total_pieces = sum(
-            1 for row in self.board.board for piece in row if piece != "."
-        )
-        return total_pieces > (self.board.row * self.board.col) // 2
-
     def add_child(self, move, board):
         child_board = deepcopy(board)
         child_board.make_move(move, self.player_color)
@@ -181,18 +174,13 @@ class MCTS_Node:
         return 0 <= row < self.board.row and 0 <= col < self.board.col
 
 
-class StudentAI:
-    def __init__(self, col, row, p) -> None:
-        self.col = col
-        self.row = row
-        self.p = p
-        self.board = Board(col, row, p)
-        self.board.initialize_game()
-        self.color = 2
+class Minimax:
+    def __init__(self, board, player_color):
+        self.board = board
+        self.color = player_color
         self.opponent = {1: 2, 2: 1}
-        self.total_time = 0
-        self.max_total_time = 300  # 5 minutes in seconds
-    def minmax_evaluate(self, board):
+
+    def evaluate(self, board):
         white_score = 0
         black_score = 0
 
@@ -206,8 +194,8 @@ class StudentAI:
             for col in range(board.col):
                 checker = board.board[row][col]
 
-                #for white pieces score
-                if checker.color == 'W':
+                # for white pieces score
+                if checker.color == "W":
                     white_score += piece_weight
                     if checker.is_king:
                         white_score += king_weight
@@ -217,7 +205,7 @@ class StudentAI:
                         white_score += center_weight
 
                 # for black pieces score
-                elif checker.color == 'B':
+                elif checker.color == "B":
                     black_score += piece_weight
                     if checker.is_king:
                         black_score += king_weight
@@ -233,16 +221,22 @@ class StudentAI:
 
     def minimax(self, board, depth, alpha, beta, is_max_player):
         # if reached the search depth limit, or some player wins, return the current score
-        if depth == 0 or board.is_win(self.color) or board.is_win(self.opponent[self.color]):
-            return self.minmax_evaluate(board)
+        if (
+            depth == 0
+            or board.is_win(self.color)
+            or board.is_win(self.opponent[self.color])
+        ):
+            return self.evaluate(board)
 
         # traverse all possible moves of the current player
         if is_max_player:
-            max_player_score = float('-inf')
+            max_player_score = float("-inf")
             for move in board.get_all_possible_moves(self.color):
                 for m in move:
                     board.make_move(m, self.color)
-                    current_score = self.minimax(board, depth - 1, alpha, beta, False) # pass in alpha and beta, switch players
+                    current_score = self.minimax(
+                        board, depth - 1, alpha, beta, False
+                    )  # pass in alpha and beta, switch players
                     board.undo()
                     max_player_score = max(max_player_score, current_score)
                     alpha = max(alpha, current_score)
@@ -251,11 +245,13 @@ class StudentAI:
             return max_player_score
         # traverse all possible moves of the opponent
         else:
-            min_player_score = float('inf')
+            min_player_score = float("inf")
             for move in board.get_all_possible_moves(self.opponent[self.color]):
                 for m in move:
                     board.make_move(m, self.opponent[self.color])
-                    current_score = self.minimax(board, depth - 1, alpha, beta, True)  # pass in alpha and beta, switch players
+                    current_score = self.minimax(
+                        board, depth - 1, alpha, beta, True
+                    )  # pass in alpha and beta, switch players
                     board.undo()
                     min_player_score = min(min_player_score, current_score)
                     beta = min(beta, current_score)
@@ -265,22 +261,36 @@ class StudentAI:
 
     def find_minmax_best_move(self, board, depth):
         best_move = None
-        alpha = float('-inf')
-        beta = float('inf')
+        alpha = float("-inf")
+        beta = float("inf")
 
         for move in board.get_all_possible_moves(self.color):
             for m in move:
                 board.make_move(m, self.color)
                 score = self.minimax(board, depth - 1, alpha, beta, self.color == 2)
                 board.undo()
-                if self.color == 1 and score > alpha: # for black use alpha
+                if self.color == 1 and score > alpha:  # for black use alpha
                     alpha = score
                     best_move = m
-                elif self.color == 2 and score < beta: # for white use beta
+                elif self.color == 2 and score < beta:  # for white use beta
                     beta = score
                     best_move = m
 
         return best_move
+
+
+class StudentAI:
+    def __init__(self, col, row, p) -> None:
+        self.col = col
+        self.row = row
+        self.p = p
+        self.board = Board(col, row, p)
+        self.board.initialize_game()
+        self.color = 2
+        self.opponent = {1: 2, 2: 1}
+        self.total_time = 0
+        self.max_total_time = 300
+
     def get_move(self, move: Move):
         if len(move) != 0:
             self.board.make_move(move, self.opponent[self.color])
@@ -296,7 +306,8 @@ class StudentAI:
         if self.total_time > self.max_total_time * 0.9:
             # 时间不够时采用minmax算法快速决定
             # best_move = max(root.children, key=lambda c: c.visits).move
-            best_move = self.find_minmax_best_move(self.board, 3)
+            minimax = Minimax(self.board, self.color)
+            best_move = minimax.find_minmax_best_move(self.board, 5)
         else:
             best_move = max(root.children, key=lambda c: c.val / c.visits).move
         self.board.make_move(best_move, self.color)
@@ -305,7 +316,7 @@ class StudentAI:
     def run_mcts(self, root: MCTS_Node):
         # if the game is in the late stage, decrease the iteration number
         if self.total_time > self.max_total_time * 0.7:
-            iterations = 100
+            iterations = 150
         else:
             iterations = 300  # change the iteration number here
         for _ in range(iterations):
